@@ -79,7 +79,7 @@ Resources:
   # --- Private Subnet Network ACLs ---
 
   # --- INGRESS RULES ---
-  # --- Rule 10: Allow IN VPC CIDR on port 80 for TCP 
+  # --- Rule 10: Allow IN VPC CIDR on port 8080 for TCP 
   PrivateIngressRule10:
     Type: AWS::EC2::NetworkAclEntry
     Properties: 
@@ -89,8 +89,8 @@ Resources:
       NetworkAclId: 
         Fn::ImportValue: !Join [":", [!Ref VPCStackName, "private-nacl:id"]]
       PortRange: 
-        From: 80
-        To: 80
+        From: 8080
+        To: 8080
       Protocol: 6
       RuleAction: allow
       RuleNumber: 10
