@@ -91,6 +91,7 @@ Resources:
         - Fn::GetAZs: !Ref 'AWS::Region'
       CidrBlock: 192.168.0.1/26
       VpcId: !Ref VPC
+      MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: !Join ["-", [!Ref VPC, public-a]]
@@ -166,6 +167,7 @@ Resources:
         - Fn::GetAZs: !Ref 'AWS::Region'
       CidrBlock: 192.168.1.0/26
       VpcId: !Ref VPC
+      MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: !Join ["-", [!Ref VPC, public-b]]
