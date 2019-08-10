@@ -7,6 +7,8 @@ Description: >
   3. 2 route tables are created, 1 that acts as the default and the other for the public subnet.
   4. An Internet Gateway is created, attached to the VPC and a route entry is added to the public route table 
 
+  The CIDR is hardcoded to 192.168.0.0/22
+
 Resources:
   VPC:
     Type: AWS::EC2::VPC
@@ -236,6 +238,12 @@ Outputs:
     Value: !Ref VPC
     Export:
       Name: !Join [":", [!Ref "AWS::StackName", 'id']]
+  
+  VPCCIDR:
+    Description: VPC CIDR Range
+    Value: 192.168.0.0/22
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", 'cidr']]
 
   PublicSubnetA:
     Description: Public Subnet A ID
