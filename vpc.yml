@@ -4,8 +4,9 @@ Description: >
 
   1. Creates 3 subnets (Public, Private, Data) in each AZ. 
   2. Creates 3 Network ACL's that deny all traffic be default. There's a NACL for each of the 3 Subnets. 
-  3. 2 route tables are created, 1 that acts as the default and the other for the public subnet.
-  4. An Internet Gateway is created, attached to the VPC and a route entry is added to the public route table 
+  3. 2 route tables are created per AZ, 1 that acts as the default and the other for the public subnet.
+  4. An Internet Gateway is created, attached to the VPC and a route entry is added to the public route table for each AZ
+  5. A NAT Gateway in each public subnet with a route entry in each private main route table
 
   The CIDR is hardcoded to 192.168.0.0/22
 
@@ -31,15 +32,75 @@ Resources:
     Properties: 
       InternetGatewayId: !Ref IGW
       VpcId: !Ref VPC
+  
+  # --- NAT Gateways ---
+  NATAZ1:
+   Type: AWS::EC2::NatGateway
+   Properties:
+      AllocationId:
+         Fn::GetAtt:
+         - NATEIPAZ1
+         - AllocationId
+      SubnetId: !Ref PublicSubnetAZ1
+      Tags:
+        - Key: Name
+          Value: !Join ["-", [!Ref VPC, natgw-az1]]
+
+  NATEIPAZ1:
+    DependsOn: AttachIGW
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  
+  NATAZ2:
+   Type: AWS::EC2::NatGateway
+   Properties:
+      AllocationId:
+         Fn::GetAtt:
+         - NATEIPAZ2
+         - AllocationId
+      SubnetId: !Ref PublicSubnetAZ2
+      Tags:
+        - Key: Name
+          Value: !Join ["-", [!Ref VPC, natgw-az2]]
+
+  NATEIPAZ2:
+    DependsOn: AttachIGW
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      
 
   # --- Route Tables ---
-  MainRouteTable:
+  MainRouteTableAZ1:
     Type: AWS::EC2::RouteTable
     Properties: 
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: !Join ["-", [!Ref VPC, main-route]]
+          Value: !Join ["-", [!Ref VPC, main-route-az1]]
+  
+  MainRouteTableAZ2:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Join ["-", [!Ref VPC, main-route-az2]]
+  
+  NATRouteAZ1:
+    Type: AWS::EC2::Route
+    Properties:
+       RouteTableId: !Ref MainRouteTableAZ1
+       DestinationCidrBlock: 0.0.0.0/0
+       NatGatewayId: !Ref NATAZ1
+  
+  NATRouteAZ2:
+    Type: AWS::EC2::Route
+    Properties:
+       RouteTableId: !Ref MainRouteTableAZ2
+       DestinationCidrBlock: 0.0.0.0/0
+       NatGatewayId: !Ref NATAZ2
   
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
@@ -48,7 +109,7 @@ Resources:
       Tags:
         - Key: Name
           Value: !Join ["-", [!Ref VPC, public-route]]
-
+  
   PublicRoute:
     Type: AWS::EC2::Route
     DependsOn: AttachIGW
@@ -82,8 +143,8 @@ Resources:
           Value: !Join ["-", [!Ref VPC, public-nacl]]
       VpcId: !Ref VPC
 
-  # --- Public Subnet A ---
-  PublicSubnetA:
+  # --- Public Subnet AZ1 ---
+  PublicSubnetAZ1:
     Type: AWS::EC2::Subnet
     Properties: 
       AvailabilityZone: !Select 
@@ -94,22 +155,22 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Join ["-", [!Ref VPC, public-a]]
+          Value: !Join ["-", [!Ref VPC, public-az1]]
 
-  PublicSubnetARouteTable:
+  PublicSubnetRouteTableAZ1:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties: 
       RouteTableId: !Ref PublicRouteTable
-      SubnetId: !Ref PublicSubnetA
+      SubnetId: !Ref PublicSubnetAZ1
   
-  PublicSubnetANACL:
+  PublicSubnetNACLAZ1:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     Properties: 
       NetworkAclId: !Ref PublicNACL
-      SubnetId: !Ref PublicSubnetA
+      SubnetId: !Ref PublicSubnetAZ1
 
-  # --- Private Subnet A ---
-  PrivateSubnetA:
+  # --- Private Subnet AZ1 ---
+  PrivateSubnetAZ1:
     Type: AWS::EC2::Subnet
     Properties: 
       AvailabilityZone: !Select 
@@ -119,22 +180,22 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: !Join ["-", [!Ref VPC, private-a]]
+          Value: !Join ["-", [!Ref VPC, private-az1]]
 
-  PrivateSubnetARouteTable:
+  PrivateSubnetRouteTableAZ1:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties: 
-      RouteTableId: !Ref MainRouteTable
-      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref MainRouteTableAZ1
+      SubnetId: !Ref PrivateSubnetAZ1
 
-  PrivateSubnetANACL:
+  PrivateSubnetNACLAZ1:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     Properties: 
       NetworkAclId: !Ref PrivateNACL
-      SubnetId: !Ref PrivateSubnetA
+      SubnetId: !Ref PrivateSubnetAZ1
       
-  # --- Data Subnet A ---
-  DataSubnetA:
+  # --- Data Subnet AZ1 ---
+  DataSubnetAZ1:
     Type: AWS::EC2::Subnet
     Properties: 
       AvailabilityZone: !Select 
@@ -144,22 +205,22 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: !Join ["-", [!Ref VPC, data-a]]
+          Value: !Join ["-", [!Ref VPC, data-az1]]
 
-  DataSubnetARouteTable:
+  DataSubnetRouteTableAZ1:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties: 
-      RouteTableId: !Ref MainRouteTable
-      SubnetId: !Ref DataSubnetA
+      RouteTableId: !Ref MainRouteTableAZ1
+      SubnetId: !Ref DataSubnetAZ1
 
-  DataSubnetANACL:
+  DataSubnetNACLAZ1:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     Properties: 
       NetworkAclId: !Ref DataNACL
-      SubnetId: !Ref DataSubnetA
+      SubnetId: !Ref DataSubnetAZ1
 
-  # --- Public Subnet B ---
-  PublicSubnetB:
+  # --- Public Subnet AZ2 ---
+  PublicSubnetAZ2:
     Type: AWS::EC2::Subnet
     Properties: 
       AvailabilityZone: !Select 
@@ -170,22 +231,22 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Join ["-", [!Ref VPC, public-b]]
+          Value: !Join ["-", [!Ref VPC, public-az2]]
 
-  PublicSubneBARouteTable:
+  PublicSubnetRouteTableAZ2:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties: 
       RouteTableId: !Ref PublicRouteTable
-      SubnetId: !Ref PublicSubnetB
+      SubnetId: !Ref PublicSubnetAZ2
   
-  PublicSubnetBNACL:
+  PublicSubnetNACLAZ2:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     Properties: 
       NetworkAclId: !Ref PublicNACL
-      SubnetId: !Ref PublicSubnetB
+      SubnetId: !Ref PublicSubnetAZ2
 
-  # --- Private Subnet B ---
-  PrivateSubnetB:
+  # --- Private Subnet AZ2 ---
+  PrivateSubnetAZ2:
     Type: AWS::EC2::Subnet
     Properties: 
       AvailabilityZone: !Select 
@@ -195,22 +256,22 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: !Join ["-", [!Ref VPC, private-b]]
+          Value: !Join ["-", [!Ref VPC, private-az2]]
   
-  PrivateSubneBRouteTable:
+  PrivateSubneRouteTableAZ2:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties: 
-      RouteTableId: !Ref MainRouteTable
-      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref MainRouteTableAZ2
+      SubnetId: !Ref PrivateSubnetAZ2
 
-  PrivateSubnetBNACL:
+  PrivateSubnetNACLAZ2:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     Properties: 
       NetworkAclId: !Ref PrivateNACL
-      SubnetId: !Ref PrivateSubnetB
+      SubnetId: !Ref PrivateSubnetAZ2
  
-  # --- Data Subnet B ---
-  DataSubnetB:
+  # --- Data Subnet AZ2 ---
+  DataSubnetAZ2:
     Type: AWS::EC2::Subnet
     Properties: 
       AvailabilityZone: !Select 
@@ -220,19 +281,19 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: !Join ["-", [!Ref VPC, data-b]]
+          Value: !Join ["-", [!Ref VPC, data-az2]]
 
-  DataSubnetBRouteTable:
+  DataSubnetRouteTableAZ2:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties: 
-      RouteTableId: !Ref MainRouteTable
-      SubnetId: !Ref DataSubnetB
+      RouteTableId: !Ref MainRouteTableAZ2
+      SubnetId: !Ref DataSubnetAZ2
   
-  DataSubnetBNACL:
+  DataSubnetNACLAZ2:
     Type: AWS::EC2::SubnetNetworkAclAssociation
     Properties: 
       NetworkAclId: !Ref DataNACL
-      SubnetId: !Ref DataSubnetB
+      SubnetId: !Ref DataSubnetAZ2
 
 Outputs:
   VPC:
@@ -247,41 +308,41 @@ Outputs:
     Export:
       Name: !Join [":", [!Ref "AWS::StackName", 'cidr']]
 
-  PublicSubnetA:
-    Description: Public Subnet A ID
-    Value: !Ref PublicSubnetA
+  PublicSubnetAZ1:
+    Description: Public Subnet ID in AZ1
+    Value: !Ref PublicSubnetAZ1
     Export:
-      Name: !Join [":", [!Ref "AWS::StackName", 'public-subnet-a', 'id']]
+      Name: !Join [":", [!Ref "AWS::StackName", 'public-subnet-az1', 'id']]
   
-  PrivateSubnetA:
-    Description: Private Subnet A ID
-    Value: !Ref PrivateSubnetA
+  PrivateSubnetAZ1:
+    Description: Private Subnet ID in AZ1
+    Value: !Ref PrivateSubnetAZ1
     Export:
-      Name: !Join [":", [!Ref "AWS::StackName", 'private-subnet-a', 'id']]
+      Name: !Join [":", [!Ref "AWS::StackName", 'private-subnet-az1', 'id']]
   
-  DataSubnetA:
-    Description: Data Subnet A ID
-    Value: !Ref DataSubnetA
+  DataSubnetAZ1:
+    Description: Data Subnet ID in AZ1
+    Value: !Ref DataSubnetAZ1
     Export:
-      Name: !Join [":", [!Ref "AWS::StackName", 'data-subnet-a', 'id']]
+      Name: !Join [":", [!Ref "AWS::StackName", 'data-subnet-az1', 'id']]
 
-  PublicSubnetB:
-    Description: Public Subnet B ID
-    Value: !Ref PublicSubnetB
+  PublicSubnetAZ2:
+    Description: Public Subnet ID in AZ2
+    Value: !Ref PublicSubnetAZ2
     Export:
-      Name: !Join [":", [!Ref "AWS::StackName", 'public-subnet-b', 'id']]
+      Name: !Join [":", [!Ref "AWS::StackName", 'public-subnet-az2', 'id']]
   
-  PrivateSubnetB:
-    Description: Private Subnet B ID
-    Value: !Ref PrivateSubnetB
+  PrivateSubnetAZ2:
+    Description: Private Subnet ID in AZ2
+    Value: !Ref PrivateSubnetAZ2
     Export:
-      Name: !Join [":", [!Ref "AWS::StackName", 'private-subnet-b', 'id']]
+      Name: !Join [":", [!Ref "AWS::StackName", 'private-subnet-az2', 'id']]
   
-  DataSubnetB:
-    Description: Data Subnet B ID
-    Value: !Ref DataSubnetA
+  DataSubnetAZ2:
+    Description: Data Subnet ID in AZ2
+    Value: !Ref DataSubnetAZ2
     Export:
-      Name: !Join [":", [!Ref "AWS::StackName", 'data-subnet-b', 'id']]
+      Name: !Join [":", [!Ref "AWS::StackName", 'data-subnet-az2', 'id']]
   
   PublicNACL:
     Description: Public Network ACL
