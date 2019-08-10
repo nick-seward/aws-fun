@@ -33,3 +33,16 @@ Resources:
           FromPort: 8080
           ToPort: 8080
           SourceSecurityGroupId: !Ref MyAppALBSG
+
+Outputs:
+  MyAppALBSG:
+    Description: MyApp ALB SG ID
+    Value: !Ref MyAppALBSG
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", 'ALBSG:id']]
+  
+  MyAppSG:
+    Description: MyApp compute SG ID
+    Value: !Ref MyAppSG
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", 'SG:id']]
