@@ -1,6 +1,11 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: >-
-  Setup a VPC in the Canada Central region. 
+Description: >
+  Setup a VPC in the Canada Central region. You get the following setup for you,
+
+  1. Creates 3 subnets (Public, Private, Data) in each AZ. 
+  2. Creates 3 Network ACL's that deny all traffic be default. There's a NACL for each of the 3 Subnets. 
+  3. 2 route tables are created, 1 that acts as the default and the other for the public subnet.
+  4. An Internet Gateway is created, attached to the VPC and a route entry is added to the public route table 
 
 Resources:
   VPC:
@@ -16,8 +21,8 @@ Resources:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
-      - Key: Name
-        Value: !Join ["-", [!Ref VPC, igw]]
+        - Key: Name
+          Value: !Join ["-", [!Ref VPC, igw]]
   
   AttachIGW:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -31,16 +36,16 @@ Resources:
     Properties: 
       VpcId: !Ref VPC
       Tags:
-      - Key: Name
-        Value: !Join ["-", [!Ref VPC, main-route]]
+        - Key: Name
+          Value: !Join ["-", [!Ref VPC, main-route]]
   
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties: 
       VpcId: !Ref VPC
       Tags:
-      - Key: Name
-        Value: !Join ["-", [!Ref VPC, public-route]]
+        - Key: Name
+          Value: !Join ["-", [!Ref VPC, public-route]]
 
   PublicRoute:
     Type: AWS::EC2::Route
@@ -49,6 +54,31 @@ Resources:
        RouteTableId: !Ref PublicRouteTable
        DestinationCidrBlock: 0.0.0.0/0
        GatewayId: !Ref IGW
+
+  # --- Network ACLs ---
+  DataNACL:
+    Type: AWS::EC2::NetworkAcl
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: !Join ["-", [!Ref VPC, data-nacl]]
+      VpcId: !Ref VPC
+
+  PrivateNACL:
+    Type: AWS::EC2::NetworkAcl
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: !Join ["-", [!Ref VPC, private-nacl]]
+      VpcId: !Ref VPC
+  
+  PublicNACL:
+    Type: AWS::EC2::NetworkAcl
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: !Join ["-", [!Ref VPC, public-nacl]]
+      VpcId: !Ref VPC
 
   # --- Public Subnet A ---
   PublicSubnetA:
@@ -60,13 +90,19 @@ Resources:
       CidrBlock: 192.168.0.1/26
       VpcId: !Ref VPC
       Tags:
-      - Key: Name
-        Value: !Join ["-", [!Ref VPC, public-a]]
+        - Key: Name
+          Value: !Join ["-", [!Ref VPC, public-a]]
 
   PublicSubnetARouteTable:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties: 
       RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetA
+  
+  PublicSubnetANACL:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties: 
+      NetworkAclId: !Ref PublicNACL
       SubnetId: !Ref PublicSubnetA
 
   # --- Private Subnet A ---
@@ -79,13 +115,19 @@ Resources:
       CidrBlock: 192.168.0.64/26
       VpcId: !Ref VPC
       Tags:
-      - Key: Name
-        Value: !Join ["-", [!Ref VPC, private-a]]
+        - Key: Name
+          Value: !Join ["-", [!Ref VPC, private-a]]
 
   PrivateSubnetARouteTable:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties: 
       RouteTableId: !Ref MainRouteTable
+      SubnetId: !Ref PrivateSubnetA
+
+  PrivateSubnetANACL:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties: 
+      NetworkAclId: !Ref PrivateNACL
       SubnetId: !Ref PrivateSubnetA
       
   # --- Data Subnet A ---
@@ -98,13 +140,19 @@ Resources:
       CidrBlock: 192.168.0.128/26
       VpcId: !Ref VPC
       Tags:
-      - Key: Name
-        Value: !Join ["-", [!Ref VPC, data-a]]
+        - Key: Name
+          Value: !Join ["-", [!Ref VPC, data-a]]
 
   DataSubnetARouteTable:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties: 
       RouteTableId: !Ref MainRouteTable
+      SubnetId: !Ref DataSubnetA
+
+  DataSubnetANACL:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties: 
+      NetworkAclId: !Ref DataNACL
       SubnetId: !Ref DataSubnetA
 
   # --- Public Subnet B ---
@@ -117,13 +165,19 @@ Resources:
       CidrBlock: 192.168.1.0/26
       VpcId: !Ref VPC
       Tags:
-      - Key: Name
-        Value: !Join ["-", [!Ref VPC, public-b]]
+        - Key: Name
+          Value: !Join ["-", [!Ref VPC, public-b]]
 
   PublicSubneBARouteTable:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties: 
       RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetB
+  
+  PublicSubnetBNACL:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties: 
+      NetworkAclId: !Ref PublicNACL
       SubnetId: !Ref PublicSubnetB
 
   # --- Private Subnet B ---
@@ -136,13 +190,19 @@ Resources:
       CidrBlock: 192.168.1.64/26
       VpcId: !Ref VPC
       Tags:
-      - Key: Name
-        Value: !Join ["-", [!Ref VPC, private-b]]
+        - Key: Name
+          Value: !Join ["-", [!Ref VPC, private-b]]
   
   PrivateSubneBRouteTable:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties: 
       RouteTableId: !Ref MainRouteTable
+      SubnetId: !Ref PrivateSubnetB
+
+  PrivateSubnetBNACL:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties: 
+      NetworkAclId: !Ref PrivateNACL
       SubnetId: !Ref PrivateSubnetB
  
   # --- Data Subnet B ---
@@ -155,13 +215,19 @@ Resources:
       CidrBlock: 192.168.1.128/26
       VpcId: !Ref VPC
       Tags:
-      - Key: Name
-        Value: !Join ["-", [!Ref VPC, data-b]]
+        - Key: Name
+          Value: !Join ["-", [!Ref VPC, data-b]]
 
   DataSubnetBRouteTable:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties: 
       RouteTableId: !Ref MainRouteTable
+      SubnetId: !Ref DataSubnetB
+  
+  DataSubnetBNACL:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties: 
+      NetworkAclId: !Ref DataNACL
       SubnetId: !Ref DataSubnetB
 
 Outputs:
@@ -206,4 +272,22 @@ Outputs:
     Value: !Ref DataSubnetA
     Export:
       Name: !Join [":", [!Ref "AWS::StackName", 'data-subnet-b', 'id']]
+  
+  PublicNACL:
+    Description: Public Network ACL
+    Value: !Ref PublicNACL
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", 'public-nacl', 'id']]
+  
+  PrivateNACL:
+    Description: Private Network ACL
+    Value: !Ref PrivateNACL
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", 'private-nacl', 'id']]
+
+  DataNACL:
+    Description: Data Network ACL
+    Value: !Ref DataNACL
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", 'data-nacl', 'id']]
   
