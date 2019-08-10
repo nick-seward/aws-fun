@@ -1,0 +1,113 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Network ACL Entries. 
+
+Parameters:
+  VPCStackName:
+    Description: Name of the stack that created the VPC. 
+    Type: String
+
+Resources:
+
+  # --- Public Subnet Network ACLs ---
+
+  # --- INGRESS RULES ---
+  # --- Rule 10: Allow IN 0.0.0.0/0 on port 80 for TCP 
+  PublicIngressRule10:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties: 
+      CidrBlock: 0.0.0.0/0
+      Egress: false
+      NetworkAclId: 
+        Fn::ImportValue: !Join [":", [!Ref VPCStackName, "public-nacl:id"]]
+      PortRange: 
+        From: 80
+        To: 80
+      Protocol: 6
+      RuleAction: allow
+      RuleNumber: 10
+  
+  # --- Rule 20: Allow IN VPC CDIR on ports 1024-65535 for TCP (Load balancer health check)
+  PublicIngressRule20:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties: 
+      CidrBlock:
+        Fn::ImportValue: !Join [":", [!Ref VPCStackName, "cidr"]]
+      Egress: false
+      NetworkAclId: 
+        Fn::ImportValue: !Join [":", [!Ref VPCStackName, "public-nacl:id"]]
+      PortRange: 
+        From: 1024
+        To: 65535
+      Protocol: 6
+      RuleAction: allow
+      RuleNumber: 20
+
+  # -- EGRESS RULES ---
+  # --- Rule 10: Allow OUT VPC CIDR on port 80 for TCP 
+  PublicEgressRule10:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties: 
+      CidrBlock:
+        Fn::ImportValue: !Join [":", [!Ref VPCStackName, "cidr"]]
+      Egress: true
+      NetworkAclId:
+        Fn::ImportValue: !Join [":", [!Ref VPCStackName, "public-nacl:id"]]
+      PortRange: 
+        From: 80
+        To: 80
+      Protocol: 6
+      RuleAction: allow
+      RuleNumber: 10
+  
+  # --- Rule 20: Allow OUT 0.0.0.0/0 on ports 1024-65535 (Ephemeral ports) for TCP
+  PublicEgressRule20:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties: 
+      CidrBlock: 0.0.0.0/0
+      Egress: true
+      NetworkAclId:
+        Fn::ImportValue: !Join [":", [!Ref VPCStackName, "public-nacl:id"]]
+      PortRange: 
+        From: 1024
+        To: 65535
+      Protocol: 6
+      RuleAction: allow
+      RuleNumber: 20
+  
+
+  # --- Private Subnet Network ACLs ---
+
+  # --- INGRESS RULES ---
+  # --- Rule 10: Allow IN VPC CIDR on port 80 for TCP 
+  PrivateIngressRule10:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties: 
+      CidrBlock:
+        Fn::ImportValue: !Join [":", [!Ref VPCStackName, "cidr"]]
+      Egress: false
+      NetworkAclId: 
+        Fn::ImportValue: !Join [":", [!Ref VPCStackName, "private-nacl:id"]]
+      PortRange: 
+        From: 80
+        To: 80
+      Protocol: 6
+      RuleAction: allow
+      RuleNumber: 10
+
+  # --- EGRESS RULES ---
+  # --- Rule 10: Allow OUT VPC CIDR on ports 1024-65535 for TCP 
+  PrivateEgressRule10:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties: 
+      CidrBlock:
+        Fn::ImportValue: !Join [":", [!Ref VPCStackName, "cidr"]]
+      Egress: true
+      NetworkAclId:
+        Fn::ImportValue: !Join [":", [!Ref VPCStackName, "private-nacl:id"]]
+      PortRange: 
+        From: 1024
+        To: 65535
+      Protocol: 6
+      RuleAction: allow
+      RuleNumber: 10
