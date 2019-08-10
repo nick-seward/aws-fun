@@ -7,7 +7,50 @@ Resources:
     Type: AWS::EC2::VPC
     Properties: 
       CidrBlock: 192.168.0.0/22
+      Tags:
+        - Key: Name
+          Value: !Ref "AWS::StackName"
   
+  # --- Internet Gateway ---
+  IGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Join ["-", [!Ref VPC, igw]]
+  
+  AttachIGW:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: 
+      InternetGatewayId: !Ref IGW
+      VpcId: !Ref VPC
+
+  # --- Route Tables ---
+  MainRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join ["-", [!Ref VPC, main-route]]
+  
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join ["-", [!Ref VPC, public-route]]
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachIGW
+    Properties:
+       RouteTableId: !Ref PublicRouteTable
+       DestinationCidrBlock: 0.0.0.0/0
+       GatewayId: !Ref IGW
+
+  # --- Public Subnet A ---
   PublicSubnetA:
     Type: AWS::EC2::Subnet
     Properties: 
@@ -20,6 +63,13 @@ Resources:
       - Key: Name
         Value: !Join ["-", [!Ref VPC, public-a]]
 
+  PublicSubnetARouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetA
+
+  # --- Private Subnet A ---
   PrivateSubnetA:
     Type: AWS::EC2::Subnet
     Properties: 
@@ -31,8 +81,14 @@ Resources:
       Tags:
       - Key: Name
         Value: !Join ["-", [!Ref VPC, private-a]]
-      
 
+  PrivateSubnetARouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref MainRouteTable
+      SubnetId: !Ref PrivateSubnetA
+      
+  # --- Data Subnet A ---
   DataSubnetA:
     Type: AWS::EC2::Subnet
     Properties: 
@@ -45,7 +101,13 @@ Resources:
       - Key: Name
         Value: !Join ["-", [!Ref VPC, data-a]]
 
+  DataSubnetARouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref MainRouteTable
+      SubnetId: !Ref DataSubnetA
 
+  # --- Public Subnet B ---
   PublicSubnetB:
     Type: AWS::EC2::Subnet
     Properties: 
@@ -58,7 +120,13 @@ Resources:
       - Key: Name
         Value: !Join ["-", [!Ref VPC, public-b]]
 
+  PublicSubneBARouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetB
 
+  # --- Private Subnet B ---
   PrivateSubnetB:
     Type: AWS::EC2::Subnet
     Properties: 
@@ -70,8 +138,14 @@ Resources:
       Tags:
       - Key: Name
         Value: !Join ["-", [!Ref VPC, private-b]]
+  
+  PrivateSubneBRouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref MainRouteTable
+      SubnetId: !Ref PrivateSubnetB
  
-
+  # --- Data Subnet B ---
   DataSubnetB:
     Type: AWS::EC2::Subnet
     Properties: 
@@ -83,6 +157,53 @@ Resources:
       Tags:
       - Key: Name
         Value: !Join ["-", [!Ref VPC, data-b]]
+
+  DataSubnetBRouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref MainRouteTable
+      SubnetId: !Ref DataSubnetB
+
+Outputs:
+  VPC:
+    Description: VPC ID
+    Value: !Ref VPC
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", 'id']]
+
+  PublicSubnetA:
+    Description: Public Subnet A ID
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", 'public-subnet-a', 'id']]
   
+  PrivateSubnetA:
+    Description: Private Subnet A ID
+    Value: !Ref PrivateSubnetA
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", 'private-subnet-a', 'id']]
+  
+  DataSubnetA:
+    Description: Data Subnet A ID
+    Value: !Ref DataSubnetA
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", 'data-subnet-a', 'id']]
 
-
+  PublicSubnetB:
+    Description: Public Subnet B ID
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", 'public-subnet-b', 'id']]
+  
+  PrivateSubnetB:
+    Description: Private Subnet B ID
+    Value: !Ref PrivateSubnetB
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", 'private-subnet-b', 'id']]
+  
+  DataSubnetB:
+    Description: Data Subnet B ID
+    Value: !Ref DataSubnetA
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", 'data-subnet-b', 'id']]
+  
