@@ -1,0 +1,35 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Setup the security groups for MyApp. 
+
+Parameters:
+  VPC:
+    Description: VPC to deploy to
+    Type: AWS::EC2::VPC::Id
+
+Resources:
+
+  # --- Security Groups ---
+  MyAppALBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupName: ALBSG
+      GroupDescription: SG for MyApp ALB
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: TCP
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  MyAppSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: MyAppSG
+      GroupDescription: SG for MyApp
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: TCP
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref MyAppALBSG

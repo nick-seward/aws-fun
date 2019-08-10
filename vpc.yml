@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
-  Setup a VPC from scratch
+  Setup a VPC in the Canada Central region. 
 
 Resources:
   VPC:
