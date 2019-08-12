@@ -1,0 +1,106 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Setup MyApp
+
+Parameters:
+  VPC:
+    Description: VPC to deploy to
+    Type: AWS::EC2::VPC::Id
+  ASGSubnets:
+    Description: Select a private subnet for the EC2 instances
+    Type: List<AWS::EC2::Subnet::Id>
+  ALBSubnets:
+    Description: Select at least 2 public subnets for the ALB
+    Type: List<AWS::EC2::Subnet::Id>
+  MyAppSGStackName:
+    Description: Stack name that created the SG's for this application
+    Type: String
+  KeyPair:
+    Description: KeyPair name to use for the EC2 instances
+    Type: AWS::EC2::KeyPair::KeyName
+  ASGMinSize:
+    Description: Minimum number of EC2 instances to runn
+    Type: String
+    Default: 1
+  ASGMaxSize:
+    Description: Maximum number of EC2 instances to runn
+    Type: String
+    Default: 1
+
+
+Resources:
+
+  # --- ALB ---
+  ALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: ipv4
+      Name: MyApp-ALB
+      Scheme: internet-facing
+      SecurityGroups:
+        - Fn::ImportValue: !Join [":", [!Ref MyAppSGStackName, "ALBSG:id"]]
+      Subnets: !Ref ALBSubnets
+      Type: application
+
+  HTTPLoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn: ALB 
+    Properties:
+      DefaultActions: 
+        - TargetGroupArn: !Ref ALBTargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref ALB
+      Protocol: HTTP
+      Port: 80
+  
+  # --- ALB Target Group ---
+  ALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 20
+      HealthCheckPath: /
+      HealthCheckPort: 80
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 5
+      Port: 80
+      Protocol: HTTP
+      TargetType: instance
+      UnhealthyThresholdCount: 3
+      VpcId: !Ref VPC
+
+  # --- MyApp Launch Config ---
+  MyAppLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: ami-0d4ae09ec9361d8ac # Amazon Linux 2 AMI (HVM), SSD Volume Type 
+      InstanceType: t3.micro
+      KeyName: !Ref KeyPair
+      LaunchConfigurationName: MyAppLaunchConfig
+      SecurityGroups:
+        - Fn::ImportValue: !Join [":", [!Ref MyAppSGStackName, "SG:id"]]
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          yum update -y
+          yum install -y ruby wget
+          sudo amazon-linux-extras install nginx1.12
+          sudo systemctl start nginx
+          sudo systemctl enable nginx
+          sudo curl -L https://www.opscode.com/chef/install.sh | sudo bash
+          cd /home/ec2-user
+          wget https://aws-codedeploy-ca-central-1.s3.ca-central-1.amazonaws.com/latest/install
+          chmod +x ./install
+          sudo ./install auto
+  
+  # --- Auto scaling group to always have ASGMinSize instance(s) running ---
+  MyAppASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: MyAppASG
+      VPCZoneIdentifier: !Ref ASGSubnets
+      LaunchConfigurationName: !Ref MyAppLaunchConfig
+      TargetGroupARNs: 
+        - !Ref ALBTargetGroup
+      MinSize: !Ref ASGMinSize
+      MaxSize: !Ref ASGMaxSize
