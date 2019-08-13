@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Setup CodeDeploy to deploy MyApp to the ASG. 
+
+Parameters:
+  MyAppStack:
+    Description: Name of the stack that create the infrastructure for MyApp
+    Type: String
+    Default: MyApp
+  ServiceRoleArn:
+    Description: ARN of the service role that CodeDeploy will use to manage deploys
+    Type: String
+
+Resources:
+  MyApp:
+    Type: AWS::CodeDeploy::Application
+    Properties: 
+      ApplicationName: MyApp
+      ComputePlatform: Server
+  
+  MyAppDeployGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      ApplicationName: !Ref MyApp
+      AutoScalingGroups: 
+        - Fn::ImportValue: !Join [":", [!Ref MyAppStack, "ASG:name"]]
+      DeploymentConfigName: CodeDeployDefault.OneAtATime
+      DeploymentGroupName: MyAppDeploy
+      DeploymentStyle: 
+        DeploymentOption: WITH_TRAFFIC_CONTROL
+        DeploymentType: IN_PLACE
+      LoadBalancerInfo:
+        TargetGroupInfoList:
+          - 
+            Name: 
+              Fn::ImportValue: !Join [":", [!Ref MyAppStack, "TargetGroup:name"]]
+      ServiceRoleArn: !Ref ServiceRoleArn
