@@ -17,6 +17,7 @@ Parameters:
   MyAppSGStackName:
     Description: Stack name that created the SG's for this application
     Type: String
+    Default: MyApp-SG
   KeyPair:
     Description: KeyPair name to use for the EC2 instances
     Type: AWS::EC2::KeyPair::KeyName
@@ -111,3 +112,16 @@ Resources:
         - !Ref ALBTargetGroup
       MinSize: !Ref ASGMinSize
       MaxSize: !Ref ASGMaxSize
+
+Outputs:
+  MyAppASG:
+    Description: MyApp ASG
+    Value: !Ref MyAppASG
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", 'ASG:name']]
+  ALBTargetGroup:
+    Description: Target group of the ALB in front of MyApp
+    Value: 
+      Fn::GetAtt: [ALBTargetGroup, TargetGroupName]
+    Export:
+      Name: !Join [":", [!Ref "AWS::StackName", 'TargetGroup:name']]
