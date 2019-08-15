@@ -3,7 +3,7 @@ Description: >
   Setup a VPC in the Canada Central region. You get the following setup for you,
 
   1. Creates 3 subnets (Public, Private, Data) in each AZ. 
-  2. Creates 3 Network ACL's that deny all traffic be default. There's a NACL for each of the 3 Subnets. 
+  2. Creates 3 Network ACL's that deny all traffic by default. There's a NACL for each of the 3 Subnets. 
   3. 2 route tables are created per AZ, 1 that acts as the default and the other for the public subnet.
   4. An Internet Gateway is created, attached to the VPC and a route entry is added to the public route table for each AZ
   5. A NAT Gateway in each public subnet with a route entry in each private main route table
